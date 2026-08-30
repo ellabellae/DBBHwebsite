@@ -28,6 +28,25 @@ through three adapter functions in `index.html` (`apiLookup`, `apiEvents`, `apiP
    into `SUPABASE_URL` / `SUPABASE_ANON_KEY` in `index.html`.
 5. Push to `main` — Vercel redeploys, logins go from ~5s to instant.
 
+### Live sync from the Google Sheet (one time)
+The attendance/roster spreadsheet stays the source of truth — attendance forms,
+RSVP forms, the events tab, and roster/status edits all keep living there.
+`supabase/sync.gs` pushes the sheet's state to Supabase on every form
+submission, every edit, and every 5 minutes, and pulls website sign-ups back
+into a "Website Sign-Ups" tab:
+
+1. Open the spreadsheet → Extensions → Apps Script → paste `supabase/sync.gs`.
+2. Set `SUPABASE_URL` at the top of the script.
+3. Script Properties → add `SUPABASE_SERVICE_KEY` = the **service_role** key
+   (Supabase → Settings → API). This key bypasses security — it only ever
+   lives inside the sheet's script, never in the website or this repo.
+4. Run `setupTriggers()` once, then `syncAll()` once and check the log.
+5. Name each RSVP response tab `RSVP - <exact event name>` so RSVPs attach
+   to the right event on members' portals.
+
+Once the sync is live, the `supabase/seed/` CSV import (step 3 above) is only
+needed the first time — after that the sheet keeps Supabase up to date.
+
 The anon key is safe to ship in the page: row-level security blocks all direct
 table access except published events; the site goes through `member_lookup` /
 `member_submit` functions that only return one member's own record.
