@@ -237,7 +237,7 @@ begin
   end loop;
 
   if p_data ? 'events' then
-    delete from public.events;
+    delete from public.events where true;
     for r in select * from jsonb_array_elements(p_data->'events') loop
       insert into public.events (name, date_iso, time, venue, tag, details, rsvp_link, published)
       values (r->>'name', r->>'date_iso',
@@ -249,7 +249,7 @@ begin
   end if;
 
   if p_data ? 'attendance' then
-    delete from public.attendance;
+    delete from public.attendance where true;
     for r in select * from jsonb_array_elements(p_data->'attendance') loop
       insert into public.attendance (netid, event_name, event_date)
       values (lower(trim(r->>'netid')), r->>'event_name', nullif(r->>'event_date',''));
@@ -257,7 +257,7 @@ begin
   end if;
 
   if p_data ? 'rsvps' then
-    delete from public.rsvps;
+    delete from public.rsvps where true;
     for r in select * from jsonb_array_elements(p_data->'rsvps') loop
       insert into public.rsvps (netid, event_name)
       values (lower(trim(r->>'netid')), r->>'event_name');
