@@ -29,7 +29,7 @@
  *                 "RSVP - <exact event name>", e.g. "RSVP - Info Session 1".
  */
 
-var SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';   // ← set me
+var SUPABASE_URL = 'https://texrckvhyiswwiyrbini.supabase.co';
 
 // ── entry points ────────────────────────────────────────────────
 
