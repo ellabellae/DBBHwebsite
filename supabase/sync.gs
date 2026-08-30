@@ -47,6 +47,7 @@ function syncAll() {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var payload = { roster: [], signups: [], events: [], attendance: [], rsvps: [] };
+    var found = { events: false, attendance: false, rsvps: false };
 
     ss.getSheets().forEach(function (sh) {
       if (sh.getLastRow() < 1 || sh.getName() === 'Website Sign-Ups') return;
@@ -86,6 +87,7 @@ function syncAll() {
           });
         });
       } else if (col('event name') !== -1) {
+        found.events = true;
         rows.forEach(function (r) {
           var name = String(r[col('event name')] || '').trim();
           if (!name) return;
@@ -100,6 +102,7 @@ function syncAll() {
           });
         });
       } else if (head.some(function (h) { return h.indexOf('event you attended') !== -1; })) {
+        found.attendance = true;
         var evCol = head.findIndex(function (h) { return h.indexOf('event you attended') !== -1; });
         var idCol = head.findIndex(function (h) { return h.indexOf('net id') !== -1 || h.indexOf('netid') !== -1; });
         rows.forEach(function (r) {
@@ -113,6 +116,7 @@ function syncAll() {
         });
       } else if (head.length >= 2 && col('timestamp') === 0 &&
                  head.some(function (h) { return h.indexOf('netid') !== -1 || h.indexOf('net id') !== -1; })) {
+        found.rsvps = true;
         var eventName = sh.getName().replace(/^\s*rsvps?\s*[-–:]\s*/i, '').trim();
         var nCol = head.findIndex(function (h) { return h.indexOf('netid') !== -1 || h.indexOf('net id') !== -1; });
         rows.forEach(function (r) {
@@ -120,6 +124,13 @@ function syncAll() {
           if (netid) payload.rsvps.push({ netid: netid, event_name: eventName });
         });
       }
+    });
+
+    // A tab that doesn't exist means "leave that table alone" — only a
+    // present-but-emptied tab clears its table. Protects against running
+    // this script on a copy of the sheet that lacks some tabs.
+    ['events', 'attendance', 'rsvps'].forEach(function (k) {
+      if (!found[k]) delete payload[k];
     });
 
     var res = rpc_('sync_from_sheet', { p_data: payload });
