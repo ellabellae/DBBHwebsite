@@ -162,7 +162,8 @@ function rpc_(fn, body) {
   var resp = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
     method: 'post',
     contentType: 'application/json',
-    headers: { apikey: serviceKey_(), Authorization: 'Bearer ' + serviceKey_() },
+    headers: { apikey: serviceKey_(), Authorization: 'Bearer ' + serviceKey_(),
+               'User-Agent': 'dbbh-sheet-sync' },
     payload: JSON.stringify(body),
     muteHttpExceptions: true
   });
@@ -177,7 +178,8 @@ function pullWebsiteSignups_(ss) {
   var resp = UrlFetchApp.fetch(
     SUPABASE_URL + '/rest/v1/signups?select=payload,created_at' +
     '&created_at=gt.' + encodeURIComponent(since) + '&order=created_at.asc',
-    { headers: { apikey: serviceKey_(), Authorization: 'Bearer ' + serviceKey_() }, muteHttpExceptions: true });
+    { headers: { apikey: serviceKey_(), Authorization: 'Bearer ' + serviceKey_(),
+                 'User-Agent': 'dbbh-sheet-sync' }, muteHttpExceptions: true });
   if (resp.getResponseCode() >= 300) return;
   var rows = JSON.parse(resp.getContentText());
   if (!rows.length) return;
