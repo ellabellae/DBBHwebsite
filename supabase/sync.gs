@@ -144,7 +144,7 @@ function isoDate_(v) {
 function serviceKey_() {
   var k = PropertiesService.getScriptProperties().getProperty('SUPABASE_SERVICE_KEY');
   if (!k) throw new Error('Set SUPABASE_SERVICE_KEY in Script Properties first.');
-  return k;
+  return k.trim();   // stray whitespace/newlines from pasting would invalidate the key
 }
 
 function rpc_(fn, body) {
