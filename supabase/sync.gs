@@ -171,7 +171,10 @@ function rpc_(fn, body) {
   return resp.getContentText();
 }
 
-/** Pull sign-ups submitted on the website into a "Website Sign-Ups" tab. */
+/** Pull website submissions back into the sheet:
+ *  - new sign-ups are appended to the main Sign-Ups tab (found by its
+ *    "Agreement" column), matched to its columns, deduped by email
+ *  - profile updates go to a "Website Profile Updates" log tab */
 function pullWebsiteSignups_(ss) {
   var props = PropertiesService.getScriptProperties();
   var since = props.getProperty('LAST_SIGNUP_PULL') || '1970-01-01T00:00:00Z';
@@ -184,17 +187,61 @@ function pullWebsiteSignups_(ss) {
   var rows = JSON.parse(resp.getContentText());
   if (!rows.length) return;
 
-  var sh = ss.getSheetByName('Website Sign-Ups') ||
-           ss.insertSheet('Website Sign-Ups');
-  if (sh.getLastRow() === 0) {
-    sh.appendRow(['Received', 'Type', 'First', 'Last', 'Email', 'Year', 'Major',
-                  'Interests', 'Looking For', 'LinkedIn', 'Notes']);
+  // locate the main Sign-Ups tab by its Agreement column
+  var signupSh = null, headMap = {}, emailCol = -1;
+  ss.getSheets().some(function (sh) {
+    if (sh.getLastRow() < 1) return false;
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]
+                 .map(function (x) { return String(x).trim().toLowerCase(); });
+    if (head.indexOf('agreement') === -1) return false;
+    signupSh = sh;
+    head.forEach(function (name, i) { headMap[name] = i; });
+    emailCol = head.indexOf('email');
+    return true;
+  });
+
+  var existingEmails = {};
+  if (signupSh && emailCol !== -1 && signupSh.getLastRow() > 1) {
+    signupSh.getRange(2, emailCol + 1, signupSh.getLastRow() - 1, 1).getValues()
+      .forEach(function (r) { existingEmails[String(r[0]).trim().toLowerCase()] = true; });
   }
+
   rows.forEach(function (r) {
     var p = r.payload || {};
-    sh.appendRow([r.created_at, p.update === '1' ? 'profile update' : 'sign-up',
-                  p.first || '', p.last || '', p.email || '', p.year || '', p.major || '',
-                  p.interests || '', p.looking || '', p.linkedin || '', p.notes || '']);
+    var email = String(p.email || '').trim().toLowerCase();
+    if (p.update === '1') {
+      var log = ss.getSheetByName('Website Profile Updates') ||
+                ss.insertSheet('Website Profile Updates');
+      if (log.getLastRow() === 0) {
+        log.appendRow(['Received', 'Email', 'Year', 'Major', 'Interests', 'Looking For', 'LinkedIn']);
+      }
+      log.appendRow([r.created_at, email, p.year || '', p.major || '',
+                     p.interests || '', p.looking || '', p.linkedin || '']);
+      return;
+    }
+    if (!signupSh || !email || existingEmails[email]) return;
+    existingEmails[email] = true;
+    var out = [];
+    var put = function (names, v) {
+      names.some(function (n) {
+        if (headMap[n] !== undefined) { out[headMap[n]] = v; return true; }
+        return false;
+      });
+    };
+    put(['timestamp'], r.created_at);
+    put(['first', 'first name'], p.first || '');
+    put(['last', 'last name'], p.last || '');
+    put(['email'], email);
+    put(['net id', 'netid'], email.split('@')[0]);
+    put(['year'], p.year || '');
+    put(['major'], p.major || '');
+    put(['interests'], p.interests || '');
+    put(['looking for', 'looking'], p.looking || '');
+    put(['linkedin'], p.linkedin || '');
+    put(['notes'], p.notes || '');
+    put(['agreement'], 'yes');
+    for (var i = 0; i < signupSh.getLastColumn(); i++) if (out[i] === undefined) out[i] = '';
+    signupSh.appendRow(out);
   });
   props.setProperty('LAST_SIGNUP_PULL', rows[rows.length - 1].created_at);
 }
