@@ -1378,6 +1378,21 @@ const TEAM_PHOTOS = {
   <div class="page-hed">What We Offer</div>
   <div class="page-sub">Our programs, events, and community. Click any of them to learn more.</div>
 
+  <div style="background:var(--navy,#34586E);border-radius:16px;margin-bottom:34px;color:#F7F3F0;overflow:hidden;">
+    <div onclick="buddyToggle()" style="cursor:pointer;padding:20px 26px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <span style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;">Buddy Program</span>
+      <span style="background:var(--gold,#C9A020);color:#fff;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:999px;">New</span>
+      <span style="font-size:13px;opacity:.85;flex:1;min-width:180px;">Get paired with an exec mentor this fall · sign-ups close Sept 12</span>
+      <a href="https://docs.google.com/forms/d/e/1FAIpQLSdDrtnKktuqX3mH2kQkclVE2KR2j6DmmJDkivvynaO8tT7cSA/viewform?usp=header" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="background:var(--gold,#C9A020);color:#fff;font-size:12.5px;font-weight:700;padding:9px 20px;border-radius:999px;text-decoration:none;white-space:nowrap;">Sign Up →</a>
+      <span id="buddy-chev" style="font-size:14px;opacity:.8;transition:transform .25s;">▾</span>
+    </div>
+    <div id="buddy-detail" style="display:none;padding:0 26px 22px;">
+      <p style="font-size:14px;line-height:1.75;margin:0 0 12px;opacity:.94;">This fall, we're excited to launch the DBBH Buddy Program. New DBBH members are paired with an exec member to learn more about the club, explore our opportunities, and build meaningful connections within the DBBH community.</p>
+      <p style="font-size:14px;line-height:1.75;margin:0 0 12px;opacity:.94;">Once sign-ups close, we'll release buddy pairings.</p>
+      <p style="font-size:14px;line-height:1.75;margin:0;opacity:.94;">Our short-term goal is to maximize engagement and help you learn about DBBH before applications open for our Membership Pathways programs. Long-term, we want to foster a welcoming community where new members feel supported and have a mentor they can turn to for guidance and advice.</p>
+    </div>
+  </div>
+
   <div class="offer-cards">
     <div class="oc active" id="oc-conference" onclick="openOffer('conference')">
       <div class="oc-img"><img loading="lazy" decoding="async" id="oc-img-conference" alt="DBBH Conference"></div>
@@ -2720,6 +2735,12 @@ function jfBuildChips(){
   const ic = document.getElementById('jf-interests');
   if(ic) ic.innerHTML += '<button type="button" class="jf-chip" id="jf-chip-other" onclick="jfToggleOther(this)">Other…</button>';
 }
+function buddyToggle(){
+  const d = document.getElementById('buddy-detail');
+  const open = d.style.display === 'none';
+  d.style.display = open ? 'block' : 'none';
+  document.getElementById('buddy-chev').style.transform = open ? 'rotate(180deg)' : '';
+}
 function jfToggleOther(btn){
   const inp = document.getElementById('jf-interests-other');
   const on = btn.classList.toggle('on');
@@ -2766,7 +2787,7 @@ function jfNext(from){
     }
   }
   if(from===2){
-    const ok = jfState.interests.size>0;
+    const ok = jfState.interests.size>0 || jfOtherInterests().length>0;
     document.getElementById('jerr2').style.display = ok?'none':'block';
     if(!ok) return;
   }
