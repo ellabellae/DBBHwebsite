@@ -1852,6 +1852,7 @@ const TEAM_PHOTOS = {
           <div class="jf-sub">Pick as many as you like. This shapes your path in dBBH.</div>
           <label class="fl" style="display:block;margin-bottom:8px;">Interests</label>
           <div class="jf-chips" id="jf-interests"></div>
+          <input class="fi" id="jf-interests-other" placeholder="Tell us your interest…" style="display:none;margin:-6px 0 16px;" />
           <label class="fl" style="display:block;margin-bottom:8px;">What are you looking for?</label>
           <div class="jf-chips" id="jf-looking"></div>
           <div class="jf-err" id="jerr2">Pick at least one interest.</div>
@@ -2716,6 +2717,19 @@ function jfBuildChips(){
   };
   mk(JF_INTERESTS, jfState.interests, 'jf-interests');
   mk(JF_LOOKING, jfState.looking, 'jf-looking');
+  const ic = document.getElementById('jf-interests');
+  if(ic) ic.innerHTML += '<button type="button" class="jf-chip" id="jf-chip-other" onclick="jfToggleOther(this)">Other…</button>';
+}
+function jfToggleOther(btn){
+  const inp = document.getElementById('jf-interests-other');
+  const on = btn.classList.toggle('on');
+  inp.style.display = on ? 'block' : 'none';
+  if(on){ inp.focus(); } else { inp.value=''; }
+}
+function jfOtherInterests(){
+  const inp = document.getElementById('jf-interests-other');
+  if(!inp || inp.style.display==='none') return [];
+  return inp.value.split(',').map(s=>s.trim()).filter(Boolean);
 }
 function jfToggle(group, val, btn){
   const set = group==='jf-interests' ? jfState.interests : jfState.looking;
@@ -2768,7 +2782,7 @@ function jfRenderReview(){
   add('Email', v('jf-email').toLowerCase());
   add('Grad Year', v('jf-year'));
   add('Major', v('jf-major'));
-  add('Interests', [...jfState.interests].join(', '));
+  add('Interests', [...jfState.interests, ...jfOtherInterests()].join(', '));
   add('Looking for', [...jfState.looking].join(', '));
   add('LinkedIn', v('jf-linkedin'));
   add('Notes', v('jf-notes'));
@@ -2783,7 +2797,7 @@ function submitJoin(){
   const member = {
     first: v('jf-first'), last: v('jf-last'), email: v('jf-email').toLowerCase(),
     year: v('jf-year'), major: v('jf-major'),
-    interests: [...jfState.interests], looking: [...jfState.looking],
+    interests: [...jfState.interests, ...jfOtherInterests()], looking: [...jfState.looking],
     linkedin: v('jf-linkedin'), notes: v('jf-notes'),
     joined: new Date().toISOString()
   };
