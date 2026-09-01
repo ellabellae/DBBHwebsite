@@ -38,7 +38,22 @@ function setupTriggers() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ScriptApp.newTrigger('syncAll').forSpreadsheet(ss).onFormSubmit().create();
   ScriptApp.newTrigger('syncAll').forSpreadsheet(ss).onChange().create();
-  ScriptApp.newTrigger('syncAll').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('syncPull').timeBased().everyMinutes(1).create();
+  ScriptApp.newTrigger('syncAll').timeBased().everyMinutes(10).create();
+}
+
+/** Lightweight 1-minute tick: only pulls new website sign-ups into the
+ *  sheet. The full push still runs on every sheet edit/form submit and
+ *  on the 10-minute backstop, so this stays inside Google's daily
+ *  trigger-runtime quota. */
+function syncPull() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(0)) return;
+  try {
+    pullWebsiteSignups_(SpreadsheetApp.getActiveSpreadsheet());
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function syncAll() {
