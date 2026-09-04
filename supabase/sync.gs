@@ -151,6 +151,7 @@ function syncAll() {
     var res = rpc_('sync_from_sheet', { p_data: payload });
     Logger.log(res);
     pullWebsiteSignups_(ss);
+    try { updatePointTracker(); } catch (e) { Logger.log('pointTracker: ' + e); }
   } finally {
     lock.releaseLock();
   }
@@ -259,4 +260,99 @@ function pullWebsiteSignups_(ss) {
     signupSh.appendRow(out);
   });
   props.setProperty('LAST_SIGNUP_PULL', rows[rows.length - 1].created_at);
+}
+
+/** Keep the Point Tracker's event columns in sync with QR attendance.
+ *  For every event in the attendance responses (except "Test"), makes
+ *  sure the tracker has a column named after the event — claiming a
+ *  spare blank header slot between the event columns and "Previous
+ *  Membership" when one exists, inserting a column otherwise — and
+ *  marks 1 for each attendee. Appends a row for attendees not in the
+ *  tracker yet. Writes only 1s, headers, and new rows; never clears
+ *  or edits anything entered by hand. Idempotent, so the onChange
+ *  trigger it causes settles after one extra pass. */
+function updatePointTracker() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tracker = null, attendance = null;
+  ss.getSheets().forEach(function (sh) {
+    if (sh.getLastRow() < 1) return;
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]
+                 .map(function (x) { return String(x).trim().toLowerCase(); });
+    if (!tracker && head.indexOf('membership status') !== -1) tracker = sh;
+    if (!attendance && head.some(function (h) { return h.indexOf('event you attended') !== -1; })) attendance = sh;
+  });
+  if (!tracker || !attendance) return;
+
+  var aVals = attendance.getDataRange().getValues();
+  var aHead = aVals[0].map(function (x) { return String(x).trim().toLowerCase(); });
+  var aEv = aHead.findIndex(function (h) { return h.indexOf('event you attended') !== -1; });
+  var aId = aHead.findIndex(function (h) { return h.indexOf('net id') !== -1 || h.indexOf('netid') !== -1; });
+  var aName = aHead.findIndex(function (h) { return h.indexOf('name') !== -1; });
+  var aYear = aHead.indexOf('year');
+  var events = {};
+  aVals.slice(1).forEach(function (r) {
+    var ev = String(r[aEv] || '').trim();
+    var id = String(r[aId] || '').trim().toLowerCase();
+    if (!ev || !id || ev.toLowerCase() === 'test') return;
+    if (!events[ev]) events[ev] = { ids: {}, names: {}, years: {} };
+    events[ev].ids[id] = true;
+    if (aName !== -1 && r[aName]) events[ev].names[id] = String(r[aName]);
+    if (aYear !== -1 && r[aYear]) events[ev].years[id] = String(r[aYear]);
+  });
+  if (!Object.keys(events).length) return;
+
+  var tVals = tracker.getDataRange().getValues();
+  var tHead = tVals[0].map(function (x) { return String(x).trim(); });
+  var tHeadLc = tHead.map(function (x) { return x.toLowerCase(); });
+  var idCol = tHeadLc.indexOf('net id');
+  var nameCol = tHeadLc.indexOf('name');
+  var yearCol = tHeadLc.indexOf('year');
+  var prevCol = tHeadLc.findIndex(function (h) { return h.indexOf('previous') !== -1; });
+  if (idCol === -1) return;
+  var firstEvCol = (yearCol !== -1 ? yearCol : idCol) + 1;
+  var lastEvCol = prevCol !== -1 ? prevCol - 1 : tHead.length - 1;
+
+  var rowOf = {};
+  tVals.slice(1).forEach(function (r, i) {
+    var id = String(r[idCol] || '').trim().toLowerCase();
+    if (id && rowOf[id] === undefined) rowOf[id] = i + 2;
+  });
+
+  Object.keys(events).forEach(function (ev) {
+    var c = tHeadLc.indexOf(ev.toLowerCase());
+    if (c < firstEvCol || c > lastEvCol) c = -1;
+    if (c === -1) {
+      for (var j = firstEvCol; j <= lastEvCol; j++) {
+        if (tHead[j] === '') { c = j; break; }
+      }
+    }
+    if (c === -1) {
+      if (prevCol !== -1) {
+        tracker.insertColumnBefore(prevCol + 1);
+        c = prevCol;
+        tHead.splice(c, 0, ''); tHeadLc.splice(c, 0, '');
+        prevCol++; lastEvCol = c;
+      } else {
+        c = tHead.length;
+        tHead.push(''); tHeadLc.push('');
+        lastEvCol = c;
+      }
+    }
+    if (tHead[c] !== ev) {
+      tracker.getRange(1, c + 1).setValue(ev);
+      tHead[c] = ev; tHeadLc[c] = ev.toLowerCase();
+    }
+    Object.keys(events[ev].ids).forEach(function (id) {
+      var row = rowOf[id];
+      if (!row) {
+        row = tracker.getLastRow() + 1;
+        tracker.getRange(row, idCol + 1).setValue(id);
+        if (nameCol !== -1 && events[ev].names[id]) tracker.getRange(row, nameCol + 1).setValue(events[ev].names[id]);
+        if (yearCol !== -1 && events[ev].years[id]) tracker.getRange(row, yearCol + 1).setValue(events[ev].years[id]);
+        rowOf[id] = row;
+      }
+      var cell = tracker.getRange(row, c + 1);
+      if (String(cell.getValue()) !== '1') cell.setValue(1);
+    });
+  });
 }
