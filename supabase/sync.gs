@@ -73,7 +73,7 @@ function syncAll() {
 
       if (col('membership status') !== -1) {
         rows.forEach(function (r) {
-          var netid = String(r[col('net id')] || '').trim();
+          var netid = normId_(r[col('net id')]);
           if (!netid) return;
           payload.roster.push({
             netid: netid,
@@ -109,7 +109,7 @@ function syncAll() {
           payload.events.push({
             name: name,
             date_iso: isoDate_(r[col('date')]),
-            time: String(r[col('time')] || ''),
+            time: fmtTime_(r[col('time')]),
             venue: String(r[col('venue')] || ''),
             tag: String(col('category') !== -1 ? (r[col('category')] || '') : ''),
             details: String(col('description') !== -1 ? (r[col('description')] || '') : ''),
@@ -121,7 +121,7 @@ function syncAll() {
         var evCol = head.findIndex(function (h) { return h.indexOf('event you attended') !== -1; });
         var idCol = head.findIndex(function (h) { return h.indexOf('net id') !== -1 || h.indexOf('netid') !== -1; });
         rows.forEach(function (r) {
-          var netid = String(r[idCol] || '').trim();
+          var netid = normId_(r[idCol]);
           if (!netid || !String(r[evCol] || '').trim()) return;
           payload.attendance.push({
             netid: netid,
@@ -135,11 +135,18 @@ function syncAll() {
         var eventName = sh.getName().replace(/^\s*rsvps?\s*[-–:]\s*/i, '').trim();
         var nCol = head.findIndex(function (h) { return h.indexOf('netid') !== -1 || h.indexOf('net id') !== -1; });
         rows.forEach(function (r) {
-          var netid = String(r[nCol] || '').trim();
+          var netid = normId_(r[nCol]);
           if (netid) payload.rsvps.push({ netid: netid, event_name: eventName });
         });
       }
     });
+
+    // Snap attendance / RSVP event names onto the Events tab's spelling
+    // ("Info Session I" -> "Info Session 1"), so portals and the tracker
+    // treat them as the same event.
+    var canon = payload.events.map(function (e) { return e.name; });
+    payload.attendance.forEach(function (a) { a.event_name = canonEvent_(a.event_name, canon); });
+    payload.rsvps.forEach(function (r) { r.event_name = canonEvent_(r.event_name, canon); });
 
     // A tab that doesn't exist means "leave that table alone" — only a
     // present-but-emptied tab clears its table. Protects against running
@@ -158,6 +165,52 @@ function syncAll() {
 }
 
 // ── helpers ─────────────────────────────────────────────────────
+
+/** Time cell -> text. Sheets stores a time-formatted cell as a Date on
+ *  1899-12-30, which String() renders as garbage; format it instead. */
+function fmtTime_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'America/New_York', 'h:mm a');
+  return String(v || '').trim();
+}
+
+/** NetID as typed by a human -> canonical: lowercase, no @domain, no spaces. */
+function normId_(v) {
+  return String(v || '').trim().toLowerCase().replace(/@.*$/, '').replace(/\s+/g, '');
+}
+
+/** Loose event-name key: case/space/punctuation-insensitive, & = and,
+ *  roman numerals -> digits, so "Info Session I" == "Info Session 1". */
+function evKey_(s) {
+  var roman = { i:1, ii:2, iii:3, iv:4, v:5, vi:6, vii:7, viii:8, ix:9, x:10 };
+  return String(s || '').toLowerCase().replace(/&/g, ' and ')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\b(i{1,3}|iv|v|vi{1,3}|ix|x)\b/g, function (m) { return roman[m]; })
+    .replace(/\s+/g, ' ').trim();
+}
+
+/** Names from the Events tab (the canonical spellings). */
+function eventNames_(ss) {
+  var names = [];
+  ss.getSheets().forEach(function (sh) {
+    if (sh.getLastRow() < 2) return;
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]
+                 .map(function (x) { return String(x).trim().toLowerCase(); });
+    var c = head.indexOf('event name');
+    if (c === -1) return;
+    sh.getRange(2, c + 1, sh.getLastRow() - 1, 1).getValues().forEach(function (r) {
+      var n = String(r[0] || '').trim(); if (n) names.push(n);
+    });
+  });
+  return names;
+}
+
+/** Map a typed event name onto the Events tab's canonical name when they
+ *  match loosely; otherwise return it trimmed. */
+function canonEvent_(name, canon) {
+  var k = evKey_(name);
+  for (var i = 0; i < canon.length; i++) if (evKey_(canon[i]) === k) return canon[i];
+  return String(name || '').trim();
+}
 
 function isoDate_(v) {
   if (v instanceof Date) return Utilities.formatDate(v, 'America/New_York', 'yyyy-MM-dd');
@@ -281,7 +334,7 @@ function updatePointTracker() {
     if (!tracker && head.indexOf('membership status') !== -1) tracker = sh;
     if (!attendance && head.some(function (h) { return h.indexOf('event you attended') !== -1; })) attendance = sh;
   });
-  if (!tracker || !attendance) return;
+  if (!tracker || !attendance) { Logger.log('pointTracker: tab not found — tracker=' + !!tracker + ' attendance=' + !!attendance); return; }
 
   var aVals = attendance.getDataRange().getValues();
   var aHead = aVals[0].map(function (x) { return String(x).trim().toLowerCase(); });
@@ -289,10 +342,11 @@ function updatePointTracker() {
   var aId = aHead.findIndex(function (h) { return h.indexOf('net id') !== -1 || h.indexOf('netid') !== -1; });
   var aName = aHead.findIndex(function (h) { return h.indexOf('name') !== -1; });
   var aYear = aHead.indexOf('year');
+  var canon = eventNames_(ss);
   var events = {};
   aVals.slice(1).forEach(function (r) {
-    var ev = String(r[aEv] || '').trim();
-    var id = String(r[aId] || '').trim().toLowerCase();
+    var ev = canonEvent_(r[aEv], canon);
+    var id = normId_(r[aId]);
     if (!ev || !id || ev.toLowerCase() === 'test') return;
     if (!events[ev]) events[ev] = { ids: {}, names: {}, years: {} };
     events[ev].ids[id] = true;
@@ -314,9 +368,10 @@ function updatePointTracker() {
 
   var rowOf = {};
   tVals.slice(1).forEach(function (r, i) {
-    var id = String(r[idCol] || '').trim().toLowerCase();
+    var id = normId_(r[idCol]);
     if (id && rowOf[id] === undefined) rowOf[id] = i + 2;
   });
+  var wrote = 0, appended = 0;
 
   Object.keys(events).forEach(function (ev) {
     var c = tHeadLc.indexOf(ev.toLowerCase());
@@ -349,10 +404,12 @@ function updatePointTracker() {
         tracker.getRange(row, idCol + 1).setValue(id);
         if (nameCol !== -1 && events[ev].names[id]) tracker.getRange(row, nameCol + 1).setValue(events[ev].names[id]);
         if (yearCol !== -1 && events[ev].years[id]) tracker.getRange(row, yearCol + 1).setValue(events[ev].years[id]);
-        rowOf[id] = row;
+        rowOf[id] = row; appended++;
       }
       var cell = tracker.getRange(row, c + 1);
-      if (String(cell.getValue()) !== '1') cell.setValue(1);
+      if (String(cell.getValue()) !== '1') { cell.setValue(1); wrote++; }
     });
   });
+  Logger.log('pointTracker: tracker="' + tracker.getName() + '" attendance="' + attendance.getName() +
+             '" events=' + JSON.stringify(Object.keys(events)) + ' points written=' + wrote + ' rows appended=' + appended);
 }
