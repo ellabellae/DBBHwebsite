@@ -2858,6 +2858,7 @@ function routeHash(){
   const h = (location.hash||'').replace('#','').toLowerCase();
   if(h === 'join' || h === 'signup'){ openAuth('signup'); }
   else if(h === 'login'){ openAuth('login'); }
+  else if(h.startsWith('offer/') && document.getElementById('offer-'+h.split('/')[1])){ openOffer(h.split('/')[1]); }
   else if(h && document.getElementById('page-'+h)){ showPage(h); }
 }
 window.addEventListener('DOMContentLoaded', () => { jfBuildChips(); refreshNav(); routeHash(); });
