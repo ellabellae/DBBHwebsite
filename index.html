@@ -2180,15 +2180,18 @@ function showEventDetail(idx){
   document.getElementById('ep-content').style.display='block';
   document.getElementById('ep-tag').textContent=e.tag;
   document.getElementById('ep-title').textContent=e.title;
+  const isApp=/applicat|deadline/i.test(e.title+' '+e.tag);
   document.getElementById('ep-meta').innerHTML=`
     <div class="ep-mi"><div class="ep-ic">📅</div>${MONTHS[e.month]} ${e.day}, ${e.year}</div>
-    <div class="ep-mi"><div class="ep-ic">⏰</div>${e.time}</div>
-    <div class="ep-mi"><div class="ep-ic">📍</div>${e.venue}</div>
+    ${!isApp&&e.time&&e.time!=='TBA'?`<div class="ep-mi"><div class="ep-ic">⏰</div>${e.time}</div>`:''}
+    ${!isApp&&e.venue&&e.venue!=='TBA'?`<div class="ep-mi"><div class="ep-ic">📍</div>${e.venue}</div>`:''}
     ${e.speakers?`<div class="ep-mi"><div class="ep-ic">🎤</div>${e.speakers}</div>`:''}`;
   document.getElementById('ep-desc').textContent=e.desc;
   const rb=document.getElementById('ep-rsvp-btn');
   const tb=document.getElementById('ep-rsvp-thanks');
-  if(e.rsvp) tb.innerHTML=`Thanks for RSVPing! You're on the list. See you there.<div style="margin-top:8px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;"><a href="${gcalLink(e)}" target="_blank" rel="noopener" style="color:var(--sky);font-weight:600;text-decoration:none;font-size:12.5px;">Add to Calendar →</a><a href="${e.rsvp}" target="_blank" rel="noopener" style="color:var(--mid);text-decoration:underline;font-size:11.5px;">Update your RSVP</a></div>`;
+  rb.textContent=isApp?'Apply via Google Form':'RSVP via Google Form';
+  if(e.rsvp&&isApp) tb.innerHTML=`Thanks for applying! We'll be in touch.`;
+  else if(e.rsvp) tb.innerHTML=`Thanks for RSVPing! You're on the list. See you there.<div style="margin-top:8px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;"><a href="${gcalLink(e)}" target="_blank" rel="noopener" style="color:var(--sky);font-weight:600;text-decoration:none;font-size:12.5px;">Add to Calendar →</a><a href="${e.rsvp}" target="_blank" rel="noopener" style="color:var(--mid);text-decoration:underline;font-size:11.5px;">Update your RSVP</a></div>`;
   if(e.rsvp && !hasRsvped(e.title)){
     rb.href=e.rsvp; rb.style.display='block'; tb.style.display='none';
     rb.onclick=()=>{ markRsvped(e.title); setTimeout(()=>{ rb.style.display='none'; tb.style.display='block'; },300); };
@@ -2741,7 +2744,7 @@ function renderUpcoming(){
                    .sort((a,b)=>a.date-b.date).slice(0,4);
   box.innerHTML = up.length ? up.map(e=>`
     <div class="pt-ev"><div class="ed"><div class="m">${MONTHS[e.month].slice(0,3)}</div><div class="dd">${e.day}</div></div>
-    <div><div class="et">${e.title}</div><div class="em">${e.venue} · ${e.time}</div></div></div>`).join('')
+    <div><div class="et">${e.title}</div><div class="em">${/applicat|deadline/i.test(e.title+' '+e.tag)?e.tag:([e.venue,e.time].filter(v=>v&&v!=='TBA').join(' · ')||e.tag)}</div></div></div>`).join('')
     : '<div class="pt-empty" style="padding:18px;"><div class="e-s">No upcoming events on the calendar yet. Check back soon.</div></div>';
 }
 
