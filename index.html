@@ -1961,6 +1961,10 @@ const TEAM_PHOTOS = {
       </div>
 
       <div class="pt-panel" id="pt-membership">
+        <div class="dcard" id="pt-apps-card" style="margin-bottom:18px;display:none;">
+          <div class="dcard-title">Applications Open</div>
+          <div id="pt-apps"></div>
+        </div>
         <div class="dcard">
           <div class="dcard-title">Your Membership</div>
           <div id="pt-mem-status"><div class="pt-empty" style="padding:18px 0;color:var(--mid);font-size:12.5px;">Loading your membership status…</div></div>
@@ -2700,11 +2704,33 @@ function saveProfile(){
     })
     .catch(()=>{ btn.disabled=false; btn.textContent='Save'; document.getElementById('pe-err').style.display='block'; });
 }
+function renderApplications(){
+  const card=document.getElementById('pt-apps-card'), box=document.getElementById('pt-apps');
+  if(!card||!box) return;
+  const today=new Date(); today.setHours(0,0,0,0);
+  const titleCase=s=>s===s.toUpperCase()?s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()):s;
+  const colorFor=t=>({'GBM':'chip-gbm','Corporate':'chip-corp','Alumni':'chip-alum','Conference':'chip-conf','Incubator':'chip-incu'})[(t||'').trim()]||'chip-admin';
+  const apps=(window._sheetEvents||[]).filter(e=>/applicat/i.test(e.name)&&e.rsvp&&e.dateISO)
+    .map(e=>({...e,d:new Date(e.dateISO+'T12:00:00')}))
+    .filter(e=>/due|close|deadline/i.test(e.name)?e.d>=today:(today-e.d)<45*864e5)
+    .sort((a,b)=>a.d-b.d);
+  if(!apps.length){ card.style.display='none'; return; }
+  card.style.display='';
+  box.innerHTML=apps.map(e=>{
+    const isDue=/due|close|deadline/i.test(e.name);
+    const when=e.d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    return `<div class="pt-res" style="cursor:default;align-items:center;">
+      <div><div class="r-t">${titleCase(e.name.trim())} <span class="ev-chip ${colorFor(e.tag)}" style="display:inline-block;margin-left:6px;vertical-align:middle;cursor:default;">${(e.tag||'').trim()}</span></div>
+      <div class="r-s">${isDue?'Due '+when:'Opened '+when}${e.desc?' · '+e.desc:''}</div></div>
+      <a href="${e.rsvp}" target="_blank" rel="noopener" class="n-login" style="text-decoration:none;white-space:nowrap;">Apply →</a></div>`;
+  }).join('');
+}
 function renderPortal(m){
   document.getElementById('pt-name').textContent = m.first || 'member';
   loadMemberStatus(m);
   renderProfileRows(m);
   renderUpcoming();
+  loadSheetEvents(renderApplications);
 }
 function renderUpcoming(){
   const box=document.getElementById('pt-upcoming');
