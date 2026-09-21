@@ -2492,7 +2492,7 @@ function ptTab(name, btn){
 })();
 function toggleInv(h){ h.parentElement.classList.toggle('open'); }
 function statusPill(label){
-  const colors={'VP':'var(--black)','Director':'var(--slate)','Fellow':'var(--gold)','Active Member':'var(--sky)','New Member':'#8B95A1'};
+  const colors={'VP':'var(--black)','Director':'var(--slate)','Fellow':'var(--gold)','Emerging Fellow':'#B08A2E','Active Member':'var(--sky)','Active General Member':'var(--sky)','Emerging Member':'#8B95A1','New Member':'#8B95A1'};
   const c=colors[label]||'var(--sky)';
   return `<span style="display:inline-block;background:${c};color:white;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:6px 16px;border-radius:99px;">${label}</span>`;
 }
@@ -2546,9 +2546,13 @@ function loadMemberStatus(m){
         renderMembershipTab('Inactive Member',d||{});
         return;
       }
-      const label=d.status||d.role||'Active Member';
+      /* The sheet promotes anyone at 5+ points to "Fellow". Fellow is by invitation, so until exec
+         confirms it (Role = "Fellow" in the Point Tracker) the portal shows "Emerging Fellow". */
+      const rawLabel=d.status||d.role||'Active Member';
+      const confirmedFellow=/\bfellow\b/i.test(String(d.role||''));
+      const label=(/^fellow$/i.test(String(rawLabel).trim())&&!confirmedFellow)?'Emerging Fellow':rawLabel;
       const welcome='';
-      const invite=(d.fellowEligible&&label!=='Fellow'&&!d.role)?`<div style="margin-top:12px;background:var(--cream);border:1px solid var(--gold);border-radius:8px;padding:14px 18px;font-size:12.5px;color:var(--dark);">Your continued involvement has made a meaningful contribution to DBBH. We'd love to invite you to become a <strong>DBBH Fellow</strong>. Keep an eye on your inbox for a note from the exec team.</div>`:'';
+      const invite=((d.fellowEligible||label==='Emerging Fellow')&&label!=='Fellow'&&!d.role)?`<div style="margin-top:12px;background:var(--cream);border:1px solid var(--gold);border-radius:8px;padding:14px 18px;font-size:12.5px;color:var(--dark);">Your continued involvement has made a meaningful contribution to DBBH. We'd love to invite you to become a <strong>DBBH Fellow</strong>. Keep an eye on your inbox for a note from the exec team.</div>`:'';
       if(d.profile){
         const cur=getMember()||m;
         const merged={...cur,
@@ -2604,7 +2608,7 @@ function roleDesc(roles,label){
   const norm=s=>String(s||'').toLowerCase().replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim();
   const map={}; Object.keys(roles).forEach(k=>map[norm(k)]=roles[k]);
   let k=norm(label);
-  const syn={'emerging member':'active member','new member':'active member','inactive member':'active member','co president':'president','vp':'vice president','vice president':'vp'};
+  const syn={'emerging fellow':'active member','active general member':'active member','emerging member':'active member','new member':'active member','inactive member':'active member','co president':'president','vp':'vice president','vice president':'vp'};
   if(map[k]) return map[k];
   if(syn[k]&&map[syn[k]]) return map[syn[k]];
   for(const rk in map){ if(k&&rk&&(rk.indexOf(k)!==-1||k.indexOf(rk)!==-1)) return map[rk]; }
