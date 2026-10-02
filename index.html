@@ -2621,7 +2621,7 @@ function renderMembershipTab(label,d){
   const desc=inactive?'':roleDesc(d&&d.roles,label);
   const count=(d&&d.eventCount)||((d&&d.events)?d.events.length:0);
   box.innerHTML=
-    `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:${desc||inactive?'12px':'0'};">${statusPill(label)}${count?`<span style="font-size:12px;color:var(--mid);">${count} event${count===1?'':'s'} attended</span>`:''}</div>`
+    `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:${desc||inactive?'12px':'0'};">${statusPill(label)}${(d&&d.points!=null)?`<span style="font-size:12px;color:var(--mid);">${d.points} point${d.points===1?'':'s'}</span>`:''}${count?`<span style="font-size:12px;color:var(--mid);">${(d&&d.points!=null)?'· ':''}${count} event${count===1?'':'s'} attended</span>`:''}</div>`
     +(desc?`<div style="font-size:13px;color:var(--dark);line-height:1.6;">${desc}</div>`:'')
     +(inactive?`<div style="background:var(--cream);border:1px solid var(--gold);border-radius:8px;padding:12px 16px;font-size:12.5px;color:var(--dark);line-height:1.55;">Attend your first dBBH event to become an active member. Scan the QR code at check-in and your status updates automatically.</div>`:'');
   const ag=document.getElementById('pt-agree-status');
@@ -2629,7 +2629,7 @@ function renderMembershipTab(label,d){
   const evb=document.getElementById('pt-mem-events');
   if(evb){
     if(d && d.events && d.events.length){
-      evb.innerHTML=d.events.map(ev=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--stone);"><div><div style="font-size:13px;font-weight:600;color:var(--black);">${ev.name}</div><div style="font-size:11px;color:var(--mid);margin-top:2px;">${ev.date||''}</div></div><div style="font-size:10.5px;color:var(--gold);font-weight:600;white-space:nowrap;">Thanks for being there</div></div>`).join('');
+      evb.innerHTML=d.events.map(ev=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--stone);"><div><div style="font-size:13px;font-weight:600;color:var(--black);">${ev.name}</div><div style="font-size:11px;color:var(--mid);margin-top:2px;">${ev.date||''}</div></div><div style="font-size:10.5px;color:var(--gold);font-weight:600;white-space:nowrap;">Thanks for being there</div></div>`).join('')+(d.previousMember?`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;"><div><div style="font-size:13px;font-weight:600;color:var(--black);">Returning member</div><div style="font-size:11px;color:var(--mid);margin-top:2px;">Member in a previous year</div></div><div style="font-size:10.5px;color:var(--gold);font-weight:600;white-space:nowrap;">+1 point</div></div>`:'');
     } else {
       evb.innerHTML='<div class="pt-empty"><div class="e-ic">📋</div><div class="e-t">No events yet</div><div class="e-s">Your attendance history will appear here once event check-ins begin this fall. Scan the QR code at any event and it shows up automatically.</div></div>';
     }

@@ -81,6 +81,8 @@ function syncAll() {
             name: String(r[col('name')] || ''),
             year: String(r[col('year')] || ''),
             status: String(r[col('membership status')] || ''),
+            points: col('total points') !== -1 ? Number(r[col('total points')]) || 0 : null,
+            prev: col('previous membership') !== -1 ? (Number(r[col('previous membership')]) >= 1) : null,
             role: String(col('role') !== -1 ? (r[col('role')] || '') : '')
           });
         });

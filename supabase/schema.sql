@@ -21,8 +21,12 @@ create table if not exists public.members (
   fellow_eligible boolean default false,
   in_roster       boolean default true,
   joined          text,
+  points          integer,                    -- Total Points from the Point Tracker
+  prev_member     boolean,                    -- carries the previous-membership point
   created_at      timestamptz default now()
 );
+alter table public.members add column if not exists points integer;
+alter table public.members add column if not exists prev_member boolean;
 
 create table if not exists public.events (
   id         bigint generated always as identity primary key,
@@ -112,6 +116,8 @@ begin
     'role', m.role,
     'roles', m.roles,
     'fellowEligible', coalesce(m.fellow_eligible, false),
+    'points', m.points,
+    'previousMember', coalesce(m.prev_member, false),
     'eventCount', (select count(*) from public.attendance a where lower(a.netid) = lower(m.netid)),
     'events', ev,
     'rsvps', rv,
@@ -201,12 +207,15 @@ begin
   for r in select * from jsonb_array_elements(coalesce(p_data->'roster','[]'::jsonb)) loop
     v_first := split_part(trim(coalesce(r->>'name','')), ' ', 1);
     v_last  := nullif(trim(substr(trim(coalesce(r->>'name','')), length(v_first) + 1)), '');
-    insert into public.members (netid, first, last, year, status, role, in_roster)
+    insert into public.members (netid, first, last, year, status, role, in_roster, points, prev_member)
     values (lower(trim(r->>'netid')), v_first, v_last, nullif(r->>'year',''),
-            nullif(r->>'status',''), nullif(r->>'role',''), false)
+            nullif(r->>'status',''), nullif(r->>'role',''), false,
+            nullif(r->>'points','')::numeric::int, nullif(r->>'prev','')::boolean)
     on conflict (netid) do update set
       status = coalesce(nullif(excluded.status,''), members.status),
       role   = excluded.role,
+      points = coalesce(excluded.points, members.points),
+      prev_member = coalesce(excluded.prev_member, members.prev_member),
       first  = coalesce(members.first, excluded.first),
       last   = coalesce(members.last,  excluded.last),
       year   = coalesce(members.year,  excluded.year);
