@@ -63,6 +63,7 @@ function syncAll() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var payload = { roster: [], signups: [], events: [], attendance: [], rsvps: [] };
     var found = { events: false, attendance: false, rsvps: false };
+    var manual = [];
 
     ss.getSheets().forEach(function (sh) {
       if (sh.getLastRow() < 1 || sh.getName() === 'Website Sign-Ups') return;
@@ -129,6 +130,18 @@ function syncAll() {
             event_date: isoDate_(r[col('timestamp')])
           });
         });
+      } else if (/manual/i.test(sh.getName()) && col('net id') !== -1) {
+        // Manual Entries: one column per event credited without a QR scan
+        // (e.g. "Speed Networking 1"). A 1 in the column means the member gets
+        // the event on their portal, same as a check-in.
+        var skip = /^(net id|name|year|role|#n\/a|)$|previou/;
+        head.forEach(function (hname, ci) {
+          if (skip.test(hname)) return;
+          rows.forEach(function (r) {
+            var netid = normId_(r[col('net id')]);
+            if (netid && Number(r[ci]) >= 1) manual.push({ netid: netid, event_name: String(values[0][ci]).trim(), event_date: '' });
+          });
+        });
       } else if (head.length >= 2 && col('timestamp') === 0 &&
                  head.some(function (h) { return h.indexOf('netid') !== -1 || h.indexOf('net id') !== -1; })) {
         found.rsvps = true;
@@ -147,6 +160,23 @@ function syncAll() {
     var canon = payload.events.map(function (e) { return e.name; });
     payload.attendance.forEach(function (a) { a.event_name = canonEvent_(a.event_name, canon); });
     payload.rsvps.forEach(function (r) { r.event_name = canonEvent_(r.event_name, canon); });
+
+    // Add manual credits, dated from the Events tab when the name matches, then
+    // keep one row per member per event so a double scan (or a scan plus a
+    // manual credit) never counts twice.
+    var dateOf = {};
+    payload.events.forEach(function (e) { dateOf[evKey_(e.name)] = e.date_iso; });
+    manual.forEach(function (m) {
+      m.event_name = canonEvent_(m.event_name, canon);
+      m.event_date = dateOf[evKey_(m.event_name)] || '';
+      payload.attendance.push(m);
+    });
+    var seenAtt = {};
+    payload.attendance = payload.attendance.filter(function (a) {
+      var k = a.netid + '|' + evKey_(a.event_name);
+      if (seenAtt[k]) return false;
+      seenAtt[k] = true; return true;
+    });
 
     // A tab that doesn't exist means "leave that table alone" — only a
     // present-but-emptied tab clears its table. Protects against running
