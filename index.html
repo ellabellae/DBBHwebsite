@@ -2578,8 +2578,29 @@ function loadMemberStatus(m){
         loadSheetEvents(()=>{
           const detail = {};
           (window._sheetEvents||[]).forEach(se=>{ detail[se.name.toLowerCase().trim()] = se; });
+          /* An RSVP tab named after an application form ("Incubator + ThinkTank Applications",
+             "Buddy Program") has no exact calendar match. Find the application entry on the
+             Events tab that shares its key word, so the member gets a link back to the form. */
+          const STOP=new Set(['and','the','for','of','to','a','an','rsvp','sign','ups','signups','session','info','program','due','open','close','event','events','application','applications','applied','apply']);
+          const words=s=>String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/).filter(w=>w&&!STOP.has(w));
+          const isApp=s=>/applica/i.test(String(s||''));
+          const findApp=name=>{
+            const w=new Set(words(name)); let best=null,score=0;
+            (window._sheetEvents||[]).forEach(se=>{ if(!isApp(se.name)&&!isApp(se.tag)) return;
+              const n=words(se.name).filter(x=>w.has(x)).length; if(n>score||(n===score&&best&&se.rsvp&&!best.rsvp)){ best=se; score=n; } });
+            return score?best:null;
+          };
           rBox.innerHTML = d.rsvps.map(rv=>{
-            const se = detail[(rv.name||'').toLowerCase().trim()];
+            const key=(rv.name||'').toLowerCase().trim();
+            let se = detail[key];
+            const app = (!se && (isApp(key)||/program/i.test(key))) || (se && isApp(key)) ? findApp(rv.name) : null;
+            if(app){
+              return `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--stone);">
+                <div><div style="font-size:13px;font-weight:600;color:var(--black);">${rv.name}</div>
+                <div style="font-size:11px;color:var(--mid);margin-top:2px;">${app.dateNice?'Applications opened '+app.dateNice:'Application'}</div></div>
+                <div style="display:flex;align-items:center;gap:14px;"><span style="font-size:10.5px;color:var(--slate);background:var(--pale-blue);font-weight:700;padding:4px 10px;border-radius:99px;">Applied</span>${app.rsvp?`<a href="${app.rsvp}" target="_blank" rel="noopener" style="font-size:10.5px;font-weight:600;color:var(--sky);white-space:nowrap;text-decoration:none;">View application →</a>`:''}</div>
+              </div>`;
+            }
             let cal='';
             if(se && se.dateISO){
               const ymd = se.dateISO.replace(/-/g,'');
