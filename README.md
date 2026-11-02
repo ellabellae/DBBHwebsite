@@ -2,6 +2,8 @@
 
 The DBBH site: Home, About, What We Offer, Events & Calendar, Team, and a member login/portal.
 
+<img width="100%" alt="dbbh-website-home" src="https://github.com/user-attachments/assets/9ce83865-cf6d-4fd2-8a12-a9623c21d01a" />
+
 ## Structure
 - `index.html` — all markup, styles, and scripts (one file, no build step)
 - `images/` — site photos (WebP, extracted from the old base64-embedded version)
@@ -40,21 +42,3 @@ into a "Website Sign-Ups" tab:
 3. Script Properties → add `SUPABASE_SERVICE_KEY` = the **service_role** key
    (Supabase → Settings → API). This key bypasses security — it only ever
    lives inside the sheet's script, never in the website or this repo.
-4. Run `setupTriggers()` once, then `syncAll()` once and check the log.
-5. Name each RSVP response tab `RSVP - <exact event name>` so RSVPs attach
-   to the right event on members' portals.
-
-Once the sync is live, the `supabase/seed/` CSV import (step 3 above) is only
-needed the first time — after that the sheet keeps Supabase up to date.
-
-The anon key is safe to ship in the page: row-level security blocks all direct
-table access except published events; the site goes through `member_lookup` /
-`member_submit` functions that only return one member's own record.
-
-## Member login
-Login is a soft gate: a duke.edu NetID email checked against the `members` table
-(`in_roster = true` means registered for the current year). There is no password —
-don't put anything sensitive behind it.
-
-## Brand
-Cream `#F7F3F0` · Navy `#34586E` · Gold `#C9A020` · Sky `#7BAFD4` · Ice `#CBDBEB` — Cormorant Garamond display / DM Sans body.
