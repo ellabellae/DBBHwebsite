@@ -16,10 +16,14 @@ Deployed on Vercel; pushing to `main` auto-deploys.
 The member portal (login, membership status, events, sign-ups) talks to a backend
 through three adapter functions in `index.html` (`apiLookup`, `apiEvents`, `apiPost`):
 
-- **Supabase (fast, preferred):** set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in the
-  CONFIG block of `index.html`.
-- **Google Apps Script (legacy fallback):** used automatically while the Supabase
-  keys are empty. Slow (2–10s per request) — replace it.
+- **Supabase (the backend):** set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in the
+  CONFIG block of `index.html`. These keys must be set — the portal does not work
+  without them.
+- **Google Apps Script (legacy fallback — DEPRECATED):** older versions of the
+  site fell back to a Google Apps Script endpoint while the Supabase keys were
+  empty. It was slow (2–10s per request) and is no longer supported; do not rely
+  on it. (The Apps Script in `supabase/sync.gs` is separate — it syncs the roster
+  spreadsheet to Supabase and is still in use.)
 
 ### Supabase setup (one time)
 1. Create a free project at [supabase.com](https://supabase.com).
